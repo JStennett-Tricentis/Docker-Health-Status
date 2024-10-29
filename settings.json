@@ -1,0 +1,16 @@
+{
+	"editor.tabSize": 4,
+	"editor.insertSpaces": false,
+	"editor.formatOnPaste": true,
+	"editor.formatOnSave": true,
+	"prettier.tabWidth": 4,
+	"javascript.preferences.quoteStyle": "double",
+	"typescript.preferences.quoteStyle": "double",
+	"html.format.indentInnerHtml": true,
+	"[javascript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[html]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	}
+}

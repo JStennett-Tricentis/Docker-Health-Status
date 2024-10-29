@@ -21,6 +21,14 @@ A comprehensive Python-based testing suite for monitoring and validating Docker 
 
 ## Installation
 
+### macOS Installation
+
+1. First, ensure you have Python installed via Homebrew (if not already installed):
+
+```bash
+brew install python
+```
+
 1. Clone the repository:
 
 ```bash
@@ -28,17 +36,110 @@ git clone https://github.com/your-org/docker-healthcheck
 cd docker-healthcheck
 ```
 
-2. Create a virtual environment (recommended):
+1. Create and activate a virtual environment:
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 -m venv venv
+source venv/bin/activate
 ```
 
-3. Install required packages:
+1. Upgrade pip in the virtual environment:
+
+```bash
+python -m pip install --upgrade pip
+```
+
+1. Install required packages:
+
+```bash
+python -m pip install docker psutil requests
+```
+
+### Linux Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/your-org/docker-healthcheck
+cd docker-healthcheck
+```
+
+1. Create and activate a virtual environment:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+1. Install required packages:
 
 ```bash
 pip install docker psutil requests
+```
+
+### Windows Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/your-org/docker-healthcheck
+cd docker-healthcheck
+```
+
+1. Create and activate a virtual environment:
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+1. Install required packages:
+
+```bash
+pip install docker psutil requests
+```
+
+### Alternative Installation Using pipx
+
+If you're planning to use this as a standalone tool, you can install it using pipx:
+
+1. Install pipx (macOS):
+
+```bash
+brew install pipx
+pipx ensurepath
+```
+
+1. Install the package:
+
+```bash
+pipx install docker psutil requests
+```
+
+### Development Installation
+
+For development work, it's recommended to use a virtual environment:
+
+```bash
+# Create a virtual environment
+python3 -m venv venv
+
+# Activate the virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
+
+# Install development dependencies
+python -m pip install -r requirements-dev.txt  # If you have additional development dependencies
+```
+
+### Note on Virtual Environments
+
+Virtual environments are isolated Python environments that help avoid conflicts between different projects and system Python packages. When you're done working with the health check suite, you can deactivate the virtual environment:
+
+```bash
+deactivate
 ```
 
 ## Configuration
@@ -47,11 +148,11 @@ The health check suite can be configured through custom thresholds and monitorin
 
 ```python
 custom_thresholds = {
-    'cpu_percent': 75.0,      # CPU usage warning threshold (%)
-    'memory_percent': 80.0,   # Memory usage warning threshold (%)
-    'disk_percent': 90.0,     # Disk usage warning threshold (%)
-    'response_time': 1.5,     # API response time threshold (seconds)
-    'restart_count': 3        # Maximum allowed restart count
+    "cpu_percent": 75.0,      # CPU usage warning threshold (%)
+    "memory_percent": 80.0,   # Memory usage warning threshold (%)
+    "disk_percent": 90.0,     # Disk usage warning threshold (%)
+    "response_time": 1.5,     # API response time threshold (seconds)
+    "restart_count": 3        # Maximum allowed restart count
 }
 ```
 
@@ -75,9 +176,9 @@ print(json.dumps(results, indent=2))
 ```python
 # Initialize with custom thresholds
 custom_thresholds = {
-    'cpu_percent': 75.0,
-    'memory_percent': 80.0,
-    'response_time': 1.5
+    "cpu_percent": 75.0,
+    "memory_percent": 80.0,
+    "response_time": 1.5
 }
 
 health_check = DockerHealthCheck("your_container_name", custom_thresholds)
@@ -89,14 +190,14 @@ health_check = DockerHealthCheck("your_container_name", custom_thresholds)
 # Define endpoints to monitor
 endpoints = [
     {
-        'url': 'http://localhost:8080/health',
-        'method': 'GET',
-        'expected_status': 200
+        "url": "http://localhost:8080/health",
+        "method": "GET",
+        "expected_status": 200
     },
     {
-        'url': 'http://localhost:8080/metrics',
-        'method': 'GET',
-        'expected_status': 200
+        "url": "http://localhost:8080/metrics",
+        "method": "GET",
+        "expected_status": 200
     }
 ]
 
@@ -109,10 +210,10 @@ api_status = health_check.check_api_health(endpoints)
 ```python
 # Define error patterns to search for
 error_patterns = [
-    'ERROR',
-    'FATAL',
-    'Exception',
-    'Failed to connect'
+    "ERROR",
+    "FATAL",
+    "Exception",
+    "Failed to connect"
 ]
 
 # Check logs for errors
@@ -172,7 +273,7 @@ log_status = health_check.check_logs_for_errors(error_patterns)
 docker run -d --name test_container nginx:latest
 ```
 
-2. Run the health check suite:
+1. Run the health check suite:
 
 ```bash
 python docker_healthcheck.py
@@ -193,8 +294,8 @@ Example:
 def check_new_metric(self) -> Dict:
     # Implementation
     return {
-        'status': 'healthy',
-        'metric_value': value
+        "status": "healthy",
+        "metric_value": value
     }
 ```
 
@@ -249,7 +350,7 @@ Your Organization Name
 ## Version History
 
 - 1.0.0 (2024-10-29)
-  - Initial release
-  - Basic health monitoring
-  - Resource tracking
-  - API validation
+- Initial release
+- Basic health monitoring
+- Resource tracking
+- API validation
