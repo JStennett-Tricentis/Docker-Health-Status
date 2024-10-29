@@ -344,16 +344,61 @@ def print_colored_json(data: Dict) -> None:
 	except ImportError:
 		print(json.dumps(data, indent=2))
 
+def check_port_available(port: int) -> bool:
+	"""Check if a port is available."""
+	import socket
+	with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+		try:
+			s.bind(("", port))
+			return True
+		except OSError:
+			return False
+
+def find_available_port(start_port: int, max_attempts: int = 10) -> int:
+	"""Find an available port starting from start_port."""
+	for port in range(start_port, start_port + max_attempts):
+		if check_port_available(port):
+			return port
+	raise RuntimeError(f"No available ports found in range {start_port}-{start_port + max_attempts - 1}")
+
 def main():
 	"""Main function to start health check with Prometheus metrics."""
+	import signal
+	import sys
+
+	def signal_handler(sig, frame):
+		"""Handle interrupt signals gracefully."""
+		print("\n\033[33mReceived interrupt signal. Shutting down gracefully...\033[0m")
+		sys.exit(0)
+
+	# Register signal handlers
+	signal.signal(signal.SIGINT, signal_handler)   # Handle Ctrl+C
+	signal.signal(signal.SIGTERM, signal_handler)  # Handle termination request
+
 	try:
 		# Load and validate configuration
 		config = Config()
 		config.validate()
 		
-		# Start Prometheus HTTP server if enabled
-		start_http_server(config.monitoring_config["prometheus_port"])
-		print(f"\n\033[32mPrometheus metrics server started on port {config.monitoring_config['prometheus_port']}\033[0m")
+		# Check if default Prometheus port is available, if not, find an available one
+		prometheus_port = config.monitoring_config["prometheus_port"]
+		if not check_port_available(prometheus_port):
+			print(f"\033[33mWarning: Port {prometheus_port} is already in use.\033[0m")
+			try:
+				prometheus_port = find_available_port(prometheus_port + 1)
+				print(f"\033[32mUsing alternative port: {prometheus_port}\033[0m")
+			except RuntimeError as e:
+				print(f"\033[31mError: {str(e)}\033[0m")
+				sys.exit(1)
+		
+		# Start Prometheus HTTP server
+		try:
+			start_http_server(prometheus_port)
+			print(f"\n\033[32mPrometheus metrics server started on port {prometheus_port}\033[0m")
+			print("\033[33mPress Ctrl+C to stop monitoring\033[0m")
+		except Exception as e:
+			print(f"\033[31mError starting Prometheus server: {str(e)}\033[0m")
+			sys.exit(1)
 		
 		# Initialize health check
 		health_check = DockerHealthCheck(config)
@@ -378,14 +423,18 @@ def main():
 				print(f"\n\033[32mResults saved to: {results_file}\033[0m")
 				
 				# Wait before next check
-				time.sleep(config.monitoring_config["check_interval"])
+				for _ in range(config.monitoring_config["check_interval"]):
+					time.sleep(1)  # Sleep in 1-second intervals for better interrupt handling
 				
 			except Exception as e:
 				print(f"\033[31mError running health check: {str(e)}\033[0m")
-				time.sleep(config.monitoring_config["check_interval"])
+				# Sleep in 1-second intervals for better interrupt handling
+				for _ in range(config.monitoring_config["check_interval"]):
+					time.sleep(1)
 				
 	except Exception as e:
 		print(f"\033[31mFatal error: {str(e)}\033[0m")
+		sys.exit(1)
 
 if __name__ == "__main__":
 	main()
