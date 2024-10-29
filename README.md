@@ -84,23 +84,6 @@ venv\Scripts\activate
 pip install docker psutil requests
 ```
 
-### Alternative Installation Using pipx
-
-If you're planning to use this as a standalone tool, you can install it using pipx:
-
-1. Install pipx (macOS):
-
-```bash
-brew install pipx
-pipx ensurepath
-```
-
-1. Install the package:
-
-```bash
-pipx install docker psutil requests
-```
-
 ### Development Installation
 
 For development work, it's recommended to use a virtual environment:
@@ -141,6 +124,44 @@ RESTART_COUNT_THRESHOLD=3     # Maximum allowed restart count
 ...
 ```
 
+## Development and Testing
+
+### Setting Up a Test Environment
+
+1. Create a test container:
+
+```bash
+docker run -d --name test_container nginx:latest
+```
+
+1. Start the Grafana and Prometheus docker images.
+
+```bash
+docker-compose up -d
+```
+
+1. Run the health check suite:
+
+```bash
+python docker_healthcheck.py
+```
+
+### Components
+
+**Prometheus**: Metrics collection and storage:
+
+- Port: `9090`
+- Config: `prometheus/prometheus.yml`
+- URL: `http://localhost:9090/`
+- Dashboard: `http://localhost:9090/targets?search=`
+
+**Grafana**: Visualization and dashboards
+
+- Port: `3000`
+- Config: `grafana/provisioning/dashboards/dashboard.yml`
+- URL: `http://localhost:3000/`
+- Dashboard: `http://localhost:3000/d/docker_healthcheck/docker-health-check-dashboard`
+
 ## Usage
 
 ### Basic Usage
@@ -156,56 +177,7 @@ results = health_check.run_health_check()
 print(json.dumps(results, indent=2))
 ```
 
-### Custom Thresholds
-
-```python
-# Initialize with custom thresholds
-custom_thresholds = {
-    "cpu_percent": 75.0,
-    "memory_percent": 80.0,
-    "response_time": 1.5
-}
-
-health_check = DockerHealthCheck("your_container_name", custom_thresholds)
-```
-
-### API Endpoint Monitoring
-
-```python
-# Define endpoints to monitor
-endpoints = [
-    {
-        "url": "http://localhost:8080/health",
-        "method": "GET",
-        "expected_status": 200
-    },
-    {
-        "url": "http://localhost:8080/metrics",
-        "method": "GET",
-        "expected_status": 200
-    }
-]
-
-# Check API health
-api_status = health_check.check_api_health(endpoints)
-```
-
-### Log Error Monitoring
-
-```python
-# Define error patterns to search for
-error_patterns = [
-    "ERROR",
-    "FATAL",
-    "Exception",
-    "Failed to connect"
-]
-
-# Check logs for errors
-log_status = health_check.check_logs_for_errors(error_patterns)
-```
-
-## Sample Output
+### Sample Output
 
 ```json
 {
@@ -248,48 +220,7 @@ log_status = health_check.check_logs_for_errors(error_patterns)
 }
 ```
 
-## Development and Testing
-
-### Setting Up a Test Environment
-
-1. Create a test container:
-
-```bash
-docker run -d --name test_container nginx:latest
-```
-
-1. Run the health check suite:
-
-```bash
-python docker_healthcheck.py
-```
-
-### Adding New Health Checks
-
-To add a new health check:
-
-1. Add a new method to the DockerHealthCheck class
-2. Include relevant thresholds in the constructor
-3. Add the check to the `run_health_check` method
-4. Update the results dictionary with the new check's status
-
-Example:
-
-```python
-def check_new_metric(self) -> Dict:
-    # Implementation
-    return {
-        "status": "healthy",
-        "metric_value": value
-    }
-```
-
-## Logging
-
-The health check suite logs all activities to both console and file:
-
-- Console: Real-time monitoring
-- File: `docker_healthcheck.log` for historical tracking
+### Logging
 
 Log levels:
 
