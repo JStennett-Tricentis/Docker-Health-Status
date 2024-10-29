@@ -1,39 +1,38 @@
 # Docker Container Health Check Suite
 
-A comprehensive Python-based testing suite for monitoring and validating Docker container health metrics. This tool provides automated health checks, resource monitoring, and API validation for Docker containers.
+A Python-based testing suite for monitoring and validating Docker container health metrics. This tool provides automated health checks, resource monitoring, and API validation for Docker containers.
 
-## Features
+## 🚧 POC Status Notice
 
-- **Container Status Monitoring**: Track container running state and restart count
-- **Resource Usage Tracking**: Monitor CPU, memory, and disk usage
-- **API Health Validation**: Test endpoint availability and response times
-- **Log Analysis**: Search for error patterns in container logs
-- **Configurable Thresholds**: Customize warning thresholds for different metrics
-- **Comprehensive Reporting**: Detailed JSON-formatted health check reports
-- **Extensible Architecture**: Easy to add new health checks and metrics
-
-## Prerequisites
-
-- Python 3.7+
-- Docker Engine
-- Docker SDK for Python
-- Access to target containers
-
-## Installation
-
-### macOS Installation
-
-1. First, ensure you have Python installed via Homebrew (if not already installed):
+This project is currently in Proof of Concept phase. For testing purposes, please start the following basic container for testing purposes:
 
 ```bash
-brew install python
+docker run -d --name test_container nginx:latest
 ```
+
+Note: This temporary setup will be replaced with the actual production Docker image in future releases.
+
+## Installation
 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-org/docker-healthcheck
-cd docker-healthcheck
+git clone https://github.com/JStennett-Tricentis/Docker-Health-Status
+cd Docker-Health-Status
+```
+
+1. **Configure Environment**
+
+```bash
+cp .env.example .env
+```
+
+### macOS Installation
+
+1. First, ensure you have Python installed via Homebrew (**if not already installed**):
+
+```bash
+brew install python
 ```
 
 1. Create and activate a virtual environment:
@@ -57,13 +56,6 @@ python -m pip install docker psutil requests
 
 ### Linux Installation
 
-1. Clone the repository:
-
-```bash
-git clone https://github.com/your-org/docker-healthcheck
-cd docker-healthcheck
-```
-
 1. Create and activate a virtual environment:
 
 ```bash
@@ -78,13 +70,6 @@ pip install docker psutil requests
 ```
 
 ### Windows Installation
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/your-org/docker-healthcheck
-cd docker-healthcheck
-```
 
 1. Create and activate a virtual environment:
 
@@ -126,9 +111,9 @@ python3 -m venv venv
 
 # Activate the virtual environment
 # On macOS/Linux:
-source venv/bin/activate
+# source venv/bin/activate
 # On Windows:
-# venv\Scripts\activate
+venv\Scripts\activate
 
 # Install development dependencies
 python -m pip install -r requirements-dev.txt  # If you have additional development dependencies
@@ -144,16 +129,16 @@ deactivate
 
 ## Configuration
 
-The health check suite can be configured through custom thresholds and monitoring parameters:
+The health check suite can be configured through custom thresholds and monitoring parameters located in the `.env` file:
 
 ```python
-custom_thresholds = {
-    "cpu_percent": 75.0,      # CPU usage warning threshold (%)
-    "memory_percent": 80.0,   # Memory usage warning threshold (%)
-    "disk_percent": 90.0,     # Disk usage warning threshold (%)
-    "response_time": 1.5,     # API response time threshold (seconds)
-    "restart_count": 3        # Maximum allowed restart count
-}
+...
+CPU_PERCENT_THRESHOLD=75.0    # CPU usage warning threshold (%)
+MEMORY_PERCENT_THRESHOLD=80.0 # Memory usage warning threshold (%)
+DISK_PERCENT_THRESHOLD=90.0   # Disk usage warning threshold (%)
+RESPONSE_TIME_THRESHOLD=1.5   # API response time threshold (seconds)
+RESTART_COUNT_THRESHOLD=3     # Maximum allowed restart count
+...
 ```
 
 ## Usage
