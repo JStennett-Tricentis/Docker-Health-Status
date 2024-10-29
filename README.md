@@ -299,14 +299,6 @@ def check_new_metric(self) -> Dict:
     }
 ```
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
 ## Logging
 
 The health check suite logs all activities to both console and file:
@@ -319,38 +311,3 @@ Log levels:
 - INFO: Normal operations
 - WARNING: Thresholds exceeded
 - ERROR: Operation failures
-
-## Troubleshooting
-
-Common issues and solutions:
-
-1. Container Not Found
-   - Verify container name/ID
-   - Check Docker daemon status
-   - Ensure proper permissions
-
-2. API Endpoint Timeouts
-   - Check network connectivity
-   - Verify endpoint URLs
-   - Adjust timeout thresholds
-
-3. Resource Usage Errors
-   - Verify container statistics access
-   - Check Docker API permissions
-   - Validate threshold configurations
-
-## License
-
-[MIT License](LICENSE)
-
-## Author
-
-Your Organization Name
-
-## Version History
-
-- 1.0.0 (2024-10-29)
-- Initial release
-- Basic health monitoring
-- Resource tracking
-- API validation

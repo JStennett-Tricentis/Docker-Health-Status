@@ -28,11 +28,11 @@ class DockerHealthCheck:
         
         # Default thresholds
         self.thresholds = {
-            "cpu_percent": 80.0,  # CPU usage threshold (%)
-            "memory_percent": 85.0,  # Memory usage threshold (%)
-            "disk_percent": 90.0,  # Disk usage threshold (%)
-            "response_time": 2.0,  # API response time threshold (seconds)
-            "restart_count": 3,  # Maximum number of restarts
+            "cpu_percent": 80.0,    # CPU usage threshold (%)
+            "memory_percent": 85.0, # Memory usage threshold (%)
+            "disk_percent": 90.0,   # Disk usage threshold (%)
+            "response_time": 2.0,   # API response time threshold (seconds)
+            "restart_count": 3,     # Maximum number of restarts
         }
         
         if thresholds:
