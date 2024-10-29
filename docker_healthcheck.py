@@ -290,31 +290,52 @@ class DockerHealthCheck:
         
         return health_status
 
+def print_colored_json(data: Dict) -> None:
+    """Print JSON with syntax highlighting."""
+    try:
+        from pygments import highlight
+        from pygments.lexers import JsonLexer
+        from pygments.formatters import TerminalFormatter
+        
+        json_str = json.dumps(data, indent=2)
+        colored_json = highlight(json_str, JsonLexer(), TerminalFormatter())
+        print(colored_json)
+    except ImportError:
+        # Fallback to regular JSON printing if pygments is not installed
+        print(json.dumps(data, indent=2))
+
 def main():
     """Main function to demonstrate usage."""
-    # Example configuration
-    container_name = "test_container"
-    custom_thresholds = {
-        "cpu_percent": 75.0,
-        "memory_percent": 80.0,
-        "response_time": 1.5
-    }
-    
-    # Example API endpoints to check - making these optional
-    endpoints = None  # Remove default endpoints since they're not running
-    
-    # Example error patterns to look for in logs
-    error_patterns = [
-        "ERROR",
-        "FATAL",
-        "Exception",
-        "Failed to connect"
-    ]
-    
-    # Initialize health check
-    health_check = DockerHealthCheck(container_name, custom_thresholds)
-    
     try:
+        # Check if pygments is installed, if not, suggest installing it
+        try:
+            import pygments
+        except ImportError:
+            print("\033[33mTip: Install pygments for colored output: pip install pygments\033[0m")
+            print()
+
+        # Example configuration
+        container_name = "test_container"
+        custom_thresholds = {
+            "cpu_percent": 75.0,
+            "memory_percent": 80.0,
+            "response_time": 1.5
+        }
+        
+        # Example API endpoints to check - making these optional
+        endpoints = None  # Remove default endpoints since they're not running
+        
+        # Example error patterns to look for in logs
+        error_patterns = [
+            "ERROR",
+            "FATAL",
+            "Exception",
+            "Failed to connect"
+        ]
+        
+        # Initialize health check
+        health_check = DockerHealthCheck(container_name, custom_thresholds)
+        
         # Run health check
         results = health_check.run_health_check(endpoints, error_patterns)
         
@@ -326,11 +347,12 @@ def main():
         with open(results_file, "w") as f:
             json.dump(results, f, indent=2)
         
-        # Print results to console
-        print(json.dumps(results, indent=2))
+        # Print results to console with color
+        print_colored_json(results)
+        print(f"\n\033[32mResults saved to: {results_file}\033[0m")
         
     except Exception as e:
-        print(f"Error running health check: {str(e)}")
+        print(f"\033[31mError running health check: {str(e)}\033[0m")
 
 if __name__ == "__main__":
     main()
