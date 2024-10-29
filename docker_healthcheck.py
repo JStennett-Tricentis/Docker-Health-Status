@@ -344,52 +344,73 @@ def print_colored_json(data: Dict) -> None:
 	except ImportError:
 		print(json.dumps(data, indent=2))
 
-def check_port_available(port: int) -> bool:
-	"""Check if a port is available."""
-	import socket
-	with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+class PortManager:
+	"""Manage port allocation and cleanup."""
+	def __init__(self, start_port: int):
+		self.start_port = start_port
+		self.current_socket = None
+		
+	def check_port_available(self, port: int) -> bool:
+		"""Check if a port is available."""
+		import socket
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
-			s.bind(("", port))
+			sock.bind(("", port))
+			sock.close()
 			return True
 		except OSError:
+			sock.close()
 			return False
-
-def find_available_port(start_port: int, max_attempts: int = 10) -> int:
-	"""Find an available port starting from start_port."""
-	for port in range(start_port, start_port + max_attempts):
-		if check_port_available(port):
-			return port
-	raise RuntimeError(f"No available ports found in range {start_port}-{start_port + max_attempts - 1}")
+			
+	def find_available_port(self, max_attempts: int = 10) -> int:
+		"""Find an available port starting from start_port."""
+		for port in range(self.start_port, self.start_port + max_attempts):
+			if self.check_port_available(port):
+				return port
+		raise RuntimeError(f"No available ports found in range {self.start_port}-{self.start_port + max_attempts - 1}")
+		
+	def cleanup(self) -> None:
+		"""Clean up any open sockets."""
+		if self.current_socket:
+			try:
+				self.current_socket.close()
+			except Exception:
+				pass
+			self.current_socket = None
 
 def main():
 	"""Main function to start health check with Prometheus metrics."""
 	import signal
 	import sys
-
-	def signal_handler(sig, frame):
-		"""Handle interrupt signals gracefully."""
-		print("\n\033[33mReceived interrupt signal. Shutting down gracefully...\033[0m")
+	
+	port_manager = None
+	
+	def cleanup_and_exit(signum=None, frame=None):
+		"""Clean up resources and exit gracefully."""
+		print("\n\033[33mReceived shutdown signal. Cleaning up...\033[0m")
+		if port_manager:
+			port_manager.cleanup()
 		sys.exit(0)
-
+	
 	# Register signal handlers
-	signal.signal(signal.SIGINT, signal_handler)   # Handle Ctrl+C
-	signal.signal(signal.SIGTERM, signal_handler)  # Handle termination request
-
+	signal.signal(signal.SIGINT, cleanup_and_exit)   # Handle Ctrl+C
+	signal.signal(signal.SIGTERM, cleanup_and_exit)  # Handle termination request
+	
 	try:
 		# Load and validate configuration
 		config = Config()
 		config.validate()
 		
-		# Check if default Prometheus port is available, if not, find an available one
-		prometheus_port = config.monitoring_config["prometheus_port"]
-		if not check_port_available(prometheus_port):
-			print(f"\033[33mWarning: Port {prometheus_port} is already in use.\033[0m")
-			try:
-				prometheus_port = find_available_port(prometheus_port + 1)
-				print(f"\033[32mUsing alternative port: {prometheus_port}\033[0m")
-			except RuntimeError as e:
-				print(f"\033[31mError: {str(e)}\033[0m")
-				sys.exit(1)
+		# Initialize port manager
+		port_manager = PortManager(config.monitoring_config["prometheus_port"])
+		
+		# Find available port
+		try:
+			prometheus_port = port_manager.find_available_port()
+			print(f"\033[32mUsing Prometheus port: {prometheus_port}\033[0m")
+		except RuntimeError as e:
+			print(f"\033[31mError: {str(e)}\033[0m")
+			cleanup_and_exit()
 		
 		# Start Prometheus HTTP server
 		try:
@@ -398,7 +419,7 @@ def main():
 			print("\033[33mPress Ctrl+C to stop monitoring\033[0m")
 		except Exception as e:
 			print(f"\033[31mError starting Prometheus server: {str(e)}\033[0m")
-			sys.exit(1)
+			cleanup_and_exit()
 		
 		# Initialize health check
 		health_check = DockerHealthCheck(config)
@@ -408,19 +429,23 @@ def main():
 				# Run health check
 				results = health_check.run_health_check()
 				
-				# Save results to file
-				timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-				results_file = os.path.join(
-					config.log_config["output_dir"],
-					f"health_check_{timestamp}.json"
-				)
-				
-				with open(results_file, "w") as f:
-					json.dump(results, f, indent=2)
-				
-				# Print colored results
-				print_colored_json(results)
-				print(f"\n\033[32mResults saved to: {results_file}\033[0m")
+				# Save results to file if enabled
+				if config.log_config["save_output_files"]:
+					timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+					results_file = os.path.join(
+						config.log_config["output_dir"],
+						f"health_check_{timestamp}.json"
+					)
+					
+					with open(results_file, "w") as f:
+						json.dump(results, f, indent=2)
+					
+					# Print colored results with file save message
+					print_colored_json(results)
+					print(f"\n\033[32mResults saved to: {results_file}\033[0m")
+				else:
+					# Just print colored results without file save message
+					print_colored_json(results)
 				
 				# Wait before next check
 				for _ in range(config.monitoring_config["check_interval"]):
@@ -434,7 +459,7 @@ def main():
 				
 	except Exception as e:
 		print(f"\033[31mFatal error: {str(e)}\033[0m")
-		sys.exit(1)
+		cleanup_and_exit()
 
 if __name__ == "__main__":
 	main()

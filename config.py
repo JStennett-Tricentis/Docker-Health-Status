@@ -32,7 +32,8 @@ class Config:
 							  "%(asctime)s - %(name)s - %(levelname)s - %(message)s"),
 			"output_dir": os.getenv("OUTPUT_DIR", "./output"),
 			"log_file": os.getenv("LOG_FILE", "docker_healthcheck.log"),
-			"retention_days": int(os.getenv("LOG_RETENTION_DAYS", 7))
+			"retention_days": int(os.getenv("LOG_RETENTION_DAYS", 7)),
+			"save_output_files": os.getenv("SAVE_OUTPUT_FILES", "false").lower() == "true"
 		}
 		
 		# API configuration
@@ -45,6 +46,8 @@ class Config:
 		# Monitoring configuration
 		self.monitoring_config = {
 			"prometheus_port": int(os.getenv("PROMETHEUS_PORT", 8000)),
+			"max_port_attempts": int(os.getenv("MAX_PORT_ATTEMPTS", 10)),
+			"port_range_start": int(os.getenv("PORT_RANGE_START", 8000)),
 			"check_interval": int(os.getenv("CHECK_INTERVAL", 60))
 		}
 		
@@ -80,18 +83,30 @@ class Config:
 	
 	def validate(self) -> None:
 		"""Validate configuration values."""
-		# Ensure output directory exists
-		os.makedirs(self.log_config["output_dir"], exist_ok=True)
+		# Ensure output directory exists if file output is enabled
+		if self.log_config["save_output_files"]:
+			os.makedirs(self.log_config["output_dir"], exist_ok=True)
 		
 		# Validate numeric values
 		for key, value in self.thresholds.items():
 			if not isinstance(value, (int, float)) or value < 0:
 				raise ValueError(f"Invalid threshold value for {key}: {value}")
 		
-		# Validate intervals
+		# Validate intervals and ports
 		if self.monitoring_config["check_interval"] < 1:
 			raise ValueError("Check interval must be positive")
-		
-		# Validate ports
+			
 		if not (1024 <= self.monitoring_config["prometheus_port"] <= 65535):
 			raise ValueError("Invalid Prometheus port number")
+			
+		if not (1024 <= self.monitoring_config["port_range_start"] <= 65535):
+			raise ValueError("Invalid port range start number")
+			
+		if self.monitoring_config["max_port_attempts"] < 1:
+			raise ValueError("Max port attempts must be positive")
+			
+		# Ensure port range end is within valid bounds
+		port_range_end = (self.monitoring_config["port_range_start"] + 
+						 self.monitoring_config["max_port_attempts"])
+		if port_range_end > 65535:
+			raise ValueError("Port range exceeds maximum valid port number (65535)")
