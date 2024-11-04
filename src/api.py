@@ -3,8 +3,10 @@
 
 from flask import Flask, jsonify
 from datetime import datetime
+from .config import Config
 
 app = Flask(__name__)
+config = Config()
 
 @app.route("/health")
 def health_check():
@@ -16,4 +18,7 @@ def health_check():
 
 def start_flask_app():
 	"""Start Flask app in a separate thread."""
-	app.run(host="0.0.0.0", port=5001)
+	app.run(
+		host=config.api_config["host"],
+		port=config.api_config["port"]
+	)
