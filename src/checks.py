@@ -302,24 +302,85 @@ class DockerHealthCheck:
 					"endpoint": endpoint["url"]
 				}
 				
-				# For response time, use observe() with Histogram
 				if "response_time" in endpoint:
 					self.metrics.api_response_time.labels(**labels).observe(endpoint["response_time"])
 
-				# For status code, use set() with Gauge
 				if "status_code" in endpoint:
 					self.metrics.api_last_status_code.labels(**labels).set(endpoint["status_code"])
-
-				# For health status, use set() with Gauge
-				self.metrics.api_health.labels(**labels).set(
-					1 if endpoint["status"] == "healthy" else 0
-				)
 
 				# Update request count using Counter
 				self.metrics.api_request_count.labels(
 					**labels,
 					status_code=str(endpoint.get("status_code", "error"))
 				).inc()
+
+				# Health status
+				self.metrics.api_health.labels(**labels).set(
+					1 if endpoint["status"] == "healthy" else 0
+				)
+
+	def check_rabbitmq_health(self) -> Dict:
+		"""Check RabbitMQ health status."""
+		try:
+			# RabbitMQ Management API endpoint
+			url = f"http://{self.config.rabbitmq_config["host"]}:{self.config.rabbitmq_config["port"]}/api/overview"
+			response = requests.get(
+				url,
+				auth=(self.config.rabbitmq_config["username"], self.config.rabbitmq_config["password"]),
+				timeout=5
+			)
+			
+			if response.status_code == 200:
+				data = response.json()
+				
+				# Update metrics
+				self.metrics.rabbitmq_up.labels(
+					container_name="rabbitmq"
+				).set(1)
+				
+				self.metrics.rabbitmq_connection_count.labels(
+					container_name="rabbitmq"
+				).set(data["object_totals"]["connections"])
+				
+				# Check queue statistics
+				queue_response = requests.get(
+					f"http://{self.config.rabbitmq_config["host"]}:{self.config.rabbitmq_config["port"]}/api/queues",
+					auth=(self.config.rabbitmq_config["username"], self.config.rabbitmq_config["password"]),
+					timeout=5
+				)
+				
+				if queue_response.status_code == 200:
+					queues = queue_response.json()
+					for queue in queues:
+						self.metrics.rabbitmq_queue_messages.labels(
+							container_name="rabbitmq",
+							queue=queue["name"]
+						).set(queue["messages"])
+				
+				return {
+					"status": "healthy",
+					"message": "RabbitMQ is running",
+					"details": {
+						"version": data["rabbitmq_version"],
+						"erlang_version": data["erlang_version"],
+						"connections": data["object_totals"]["connections"],
+						"queues": data["object_totals"]["queues"],
+						"exchanges": data["object_totals"]["exchanges"]
+					}
+				}
+			else:
+				self.metrics.rabbitmq_up.labels(container_name="rabbitmq").set(0)
+				return {
+					"status": "error",
+					"message": f"RabbitMQ API returned status {response.status_code}."
+				}
+				
+		except requests.exceptions.RequestException as e:
+			self.metrics.rabbitmq_up.labels(container_name="rabbitmq").set(0)
+			return {
+				"status": "error",
+				"message": f"Failed to connect to RabbitMQ: {str(e)}"
+			}
 
 	def run_health_check(self, endpoints: List[Dict[str, str]] = None) -> Dict:
 		"""Run health checks and update Prometheus metrics."""
@@ -348,6 +409,14 @@ class DockerHealthCheck:
 		if self.config.api_config["enabled"]:
 			api_status = self.check_api_health(endpoints)
 			health_status["checks"]["api_health"] = api_status
+		
+		# Check RabbitMQ status
+		rabbitmq_status = self.check_rabbitmq_health()
+		health_status["checks"]["rabbitmq"] = rabbitmq_status
+		if rabbitmq_status["status"] == "error":
+			# Only set overall status to error if it's not already in error state
+			if health_status["overall_status"] != "error":
+				health_status["overall_status"] = "warning"
 		
 		# Check logs for errors
 		log_status = self.check_logs_for_errors()

@@ -52,6 +52,16 @@ class Config:
 			"port_range_start": int(os.getenv("PORT_RANGE_START", 8000)),
 			"check_interval": int(os.getenv("CHECK_INTERVAL", 60))
 		}
+
+		# RabbitMQ configuration
+		self.rabbitmq_config = {
+			"host": os.getenv("RABBITMQ_HOST", "localhost"),
+			"port": int(os.getenv("RABBITMQ_PORT", 15672)),
+			"amqp_port": int(os.getenv("RABBITMQ_AMQP_PORT", 5672)),
+			"username": os.getenv("RABBITMQ_USERNAME", "admin"),
+			"password": os.getenv("RABBITMQ_PASSWORD", "admin"),
+			"queue_name": os.getenv("RABBITMQ_QUEUE_NAME", "health_check_queue")
+		}
 		
 		# Error patterns
 		self.error_patterns = self._parse_error_patterns()

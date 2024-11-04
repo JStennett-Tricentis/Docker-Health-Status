@@ -74,3 +74,22 @@ class DockerHealthCheckMetrics:
 			"Container error count",
 			["container_name", "error_type"]
 		)
+
+		# RabbitMQ metrics
+		self.rabbitmq_up = Gauge(
+			"rabbitmq_up",
+			"RabbitMQ server status (1 for running, 0 for stopped)",
+			["container_name"]
+		)
+
+		self.rabbitmq_queue_messages = Gauge(
+			"rabbitmq_queue_messages",
+			"Number of messages in RabbitMQ queues",
+			["container_name", "queue"]
+		)
+
+		self.rabbitmq_connection_count = Gauge(
+			"rabbitmq_connection_count",
+			"Number of active connections to RabbitMQ",
+			["container_name"]
+		)
