@@ -326,38 +326,63 @@ class DockerHealthCheck:
 		try:
 			# RabbitMQ Management API endpoint
 			url = f"http://{self.config.rabbitmq_config["host"]}:{self.config.rabbitmq_config["port"]}/api/overview"
+			self.logger.debug(f"Checking RabbitMQ health at {url}")
+
 			response = requests.get(
 				url,
 				auth=(self.config.rabbitmq_config["username"], self.config.rabbitmq_config["password"]),
 				timeout=5
 			)
 			
+			self.logger.debug(f"RabbitMQ API response status: {response.status_code}")
+			
 			if response.status_code == 200:
 				data = response.json()
 				
-				# Update metrics
+				# Update the up metric
+				self.logger.debug("Setting rabbitmq_up metric to 1")
 				self.metrics.rabbitmq_up.labels(
 					container_name="rabbitmq"
 				).set(1)
 				
+				# Update connection count
+				connection_count = data["object_totals"]["connections"]
+				self.logger.debug(f"Setting connection count to {connection_count}")
 				self.metrics.rabbitmq_connection_count.labels(
 					container_name="rabbitmq"
-				).set(data["object_totals"]["connections"])
+				).set(connection_count)
 				
 				# Check queue statistics
+				queue_url = f"http://{self.config.rabbitmq_config["host"]}:{self.config.rabbitmq_config["port"]}/api/queues"
+				self.logger.debug(f"Fetching queue info from {queue_url}")
 				queue_response = requests.get(
-					f"http://{self.config.rabbitmq_config["host"]}:{self.config.rabbitmq_config["port"]}/api/queues",
+					queue_url,
 					auth=(self.config.rabbitmq_config["username"], self.config.rabbitmq_config["password"]),
 					timeout=5
 				)
 				
 				if queue_response.status_code == 200:
 					queues = queue_response.json()
-					for queue in queues:
+					self.logger.debug(f"Found {len(queues)} queues")
+					
+					if not queues:  # If no queues exist yet
+						# Set a default metric with 0 messages for 'default' queue
+						self.logger.debug("No queues found, setting default queue metric to 0")
 						self.metrics.rabbitmq_queue_messages.labels(
 							container_name="rabbitmq",
-							queue=queue["name"]
-						).set(queue["messages"])
+							queue="default"
+						).set(0)
+					else:
+						for queue in queues:
+							queue_name = queue["name"]
+							message_count = queue["messages"]
+							self.logger.debug(f"Setting queue '{queue_name}' message count to {message_count}")
+							self.metrics.rabbitmq_queue_messages.labels(
+								container_name="rabbitmq",
+								queue=queue_name
+							).set(message_count)
+				else:
+					self.logger.error(f"Failed to fetch queue info: {queue_response.status_code}")
 				
 				return {
 					"status": "healthy",
@@ -365,19 +390,21 @@ class DockerHealthCheck:
 					"details": {
 						"version": data["rabbitmq_version"],
 						"erlang_version": data["erlang_version"],
-						"connections": data["object_totals"]["connections"],
+						"connections": connection_count,
 						"queues": data["object_totals"]["queues"],
 						"exchanges": data["object_totals"]["exchanges"]
 					}
 				}
 			else:
+				self.logger.error(f"RabbitMQ API returned status {response.status_code}")
 				self.metrics.rabbitmq_up.labels(container_name="rabbitmq").set(0)
 				return {
 					"status": "error",
-					"message": f"RabbitMQ API returned status {response.status_code}."
+					"message": f"RabbitMQ API returned status {response.status_code}"
 				}
 				
 		except requests.exceptions.RequestException as e:
+			self.logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
 			self.metrics.rabbitmq_up.labels(container_name="rabbitmq").set(0)
 			return {
 				"status": "error",

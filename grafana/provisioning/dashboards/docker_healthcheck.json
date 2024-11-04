@@ -604,8 +604,81 @@
 			"type": "stat",
 			"targets": [
 				{
-					"expr": "rabbitmq_up",
-					"legendFormat": "{{container_name}}"
+					"datasource": {
+						"type": "prometheus",
+						"uid": "PBFA97CFB590B2093"
+					},
+					"expr": "rabbitmq_up{container_name=\"rabbitmq\"}",
+					"instant": true,
+					"legendFormat": "Status",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "PBFA97CFB590B2093"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							},
+							{
+								"color": "yellow",
+								"value": 50
+							},
+							{
+								"color": "red",
+								"value": 100
+							}
+						]
+					}
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 32
+			},
+			"id": 9,
+			"options": {
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					],
+					"fields": "",
+					"values": false
+				},
+				"textMode": "auto"
+			},
+			"title": "Active Connections",
+			"type": "stat",
+			"targets": [
+				{
+					"datasource": {
+						"type": "prometheus",
+						"uid": "PBFA97CFB590B2093"
+					},
+					"expr": "rabbitmq_connection_count{container_name=\"rabbitmq\"}",
+					"instant": true,
+					"legendFormat": "Connections",
+					"refId": "A"
 				}
 			]
 		},
@@ -654,11 +727,11 @@
 			},
 			"gridPos": {
 				"h": 8,
-				"w": 12,
-				"x": 12,
-				"y": 32
+				"w": 24,
+				"x": 0,
+				"y": 40
 			},
-			"id": 9,
+			"id": 10,
 			"options": {
 				"legend": {
 					"calcs": [
@@ -674,8 +747,13 @@
 			"type": "timeseries",
 			"targets": [
 				{
-					"expr": "rabbitmq_queue_messages",
-					"legendFormat": "{{queue}}"
+					"datasource": {
+						"type": "prometheus",
+						"uid": "PBFA97CFB590B2093"
+					},
+					"expr": "rabbitmq_queue_messages{container_name=\"rabbitmq\"}",
+					"legendFormat": "{{queue}}",
+					"refId": "A"
 				}
 			]
 		}
