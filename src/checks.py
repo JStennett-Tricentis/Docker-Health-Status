@@ -131,47 +131,98 @@ class DockerHealthCheck:
 		
 		for endpoint in endpoints:
 			try:
+				url = endpoint["url"]
+				# Basic labels used consistently across all metrics
+				labels = {
+					"container_name": self.container_name,
+					"endpoint": url
+				}
+
+				# Start timing the request
 				start_time = time.time()
+				
+				# Make the request
 				response = requests.request(
 					method=endpoint.get("method", "GET"),
-					url=endpoint["url"],
+					url=url,
 					timeout=self.config.api_config["timeout"]
 				)
+				
+				# Calculate response time
 				response_time = time.time() - start_time
 				
 				# Parse response data
-				response_data = response.json()
+				try:
+					response_data = response.json()
+				except ValueError:
+					response_data = {"message": "Non-JSON response"}
 				
+				# Record response time
+				self.metrics.api_response_time.labels(**labels).observe(response_time)
+				
+				# Record request count with status code
+				self.metrics.api_request_count.labels(
+					**labels,
+					status_code=str(response.status_code)
+				).inc()
+				
+				# Update last status code
+				self.metrics.api_last_status_code.labels(**labels).set(response.status_code)
+				
+				# Prepare endpoint status
 				endpoint_status = {
-					"url": endpoint["url"],
+					"url": url,
 					"response_time": round(response_time, 3),
 					"status_code": response.status_code,
 					"message": response_data.get("message", "No message provided"),
-					"timestamp": response_data.get("timestamp"),
+					"timestamp": response_data.get("timestamp", datetime.now().isoformat()),
 					"status": "healthy"
 				}
 				
-				# Determine status based on response code
+				# Determine health status based on response code
 				if response.status_code == 200:
 					endpoint_status["status"] = "healthy"
+					self.metrics.api_health.labels(**labels).set(1)
 				elif response.status_code == 429:
 					endpoint_status["status"] = "warning"
 					results["status"] = "warning"
-					self.logger.warning(f"API rate limit reached: {endpoint['url']}")
-				elif response.status_code >= 500:
+					self.metrics.api_health.labels(**labels).set(0)
+					self.logger.warning(f"API rate limit reached: {url}")
+				else:
 					endpoint_status["status"] = "error"
 					results["status"] = "error"
-					self.logger.error(f"API server error: {endpoint['url']}")
+					self.metrics.api_health.labels(**labels).set(0)
+					self.logger.error(f"API error: {url} returned {response.status_code}")
 				
 				# Check response time threshold
 				if response_time > self.config.thresholds["response_time"]:
-					endpoint_status["status"] = "warning" if endpoint_status["status"] == "healthy" else endpoint_status["status"]
-					results["status"] = "warning" if results["status"] == "healthy" else results["status"]
-					self.logger.warning(f"Slow API response: {endpoint['url']} ({response_time}s)")
+					if endpoint_status["status"] == "healthy":
+						endpoint_status["status"] = "warning"
+					if results["status"] == "healthy":
+						results["status"] = "warning"
+					self.logger.warning(
+						f"Slow API response: {url} ({response_time:.2f}s > "
+						f"{self.config.thresholds['response_time']}s threshold)"
+					)
 				
 				results["endpoints"].append(endpoint_status)
 				
 			except requests.exceptions.RequestException as e:
+				self.logger.error(f"API request failed: {endpoint['url']} - {str(e)}")
+				
+				# Record failed request
+				self.metrics.api_request_count.labels(
+					container_name=self.container_name,
+					endpoint=endpoint["url"],
+					status_code="error"
+				).inc()
+				
+				# Set health status to error
+				self.metrics.api_health.labels(
+					container_name=self.container_name,
+					endpoint=endpoint["url"]
+				).set(0)
+				
 				results["status"] = "error"
 				results["endpoints"].append({
 					"url": endpoint["url"],
@@ -179,7 +230,6 @@ class DockerHealthCheck:
 					"error": str(e),
 					"timestamp": datetime.now().isoformat()
 				})
-				self.logger.error(f"API request failed: {endpoint['url']} - {str(e)}")
 				
 		return results
 
@@ -247,12 +297,29 @@ class DockerHealthCheck:
 		# Update API health metrics
 		if "api_health" in results["checks"]:
 			for endpoint in results["checks"]["api_health"]["endpoints"]:
-				labels = {"container_name": self.container_name, "endpoint": endpoint["url"]}
+				labels = {
+					"container_name": self.container_name,
+					"endpoint": endpoint["url"]
+				}
+				
+				# For response time, use observe() with Histogram
 				if "response_time" in endpoint:
-					self.metrics.api_response_time.labels(**labels).set(endpoint["response_time"])
+					self.metrics.api_response_time.labels(**labels).observe(endpoint["response_time"])
+
+				# For status code, use set() with Gauge
+				if "status_code" in endpoint:
+					self.metrics.api_last_status_code.labels(**labels).set(endpoint["status_code"])
+
+				# For health status, use set() with Gauge
 				self.metrics.api_health.labels(**labels).set(
 					1 if endpoint["status"] == "healthy" else 0
 				)
+
+				# Update request count using Counter
+				self.metrics.api_request_count.labels(
+					**labels,
+					status_code=str(endpoint.get("status_code", "error"))
+				).inc()
 
 	def run_health_check(self, endpoints: List[Dict[str, str]] = None) -> Dict:
 		"""Run health checks and update Prometheus metrics."""

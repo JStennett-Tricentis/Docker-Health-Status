@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prometheus metrics definitions for Docker Health Check Suite."""
 
-from prometheus_client import Gauge, Counter
+from prometheus_client import Gauge, Counter, Histogram
 
 class DockerHealthCheckMetrics:
 	def __init__(self):
@@ -38,16 +38,33 @@ class DockerHealthCheckMetrics:
 			["container_name"]
 		)
 		
-		# API health metrics
-		self.api_response_time = Gauge(
+		# API metrics
+		# Response time uses Histogram for percentile calculations
+		self.api_response_time = Histogram(
 			"api_response_time_seconds",
 			"API endpoint response time in seconds",
-			["container_name", "endpoint"]
+			["container_name", "endpoint"],
+			buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0]
 		)
 		
+		# Request count uses Counter
+		self.api_request_count = Counter(
+			"api_request_total",
+			"Total number of API requests",
+			["container_name", "endpoint", "status_code"]
+		)
+		
+		# Health status uses Gauge
 		self.api_health = Gauge(
 			"api_health_status",
 			"API endpoint health status (1 for healthy, 0 for unhealthy)",
+			["container_name", "endpoint"]
+		)
+		
+		# Last status code uses Gauge
+		self.api_last_status_code = Gauge(
+			"api_last_status_code",
+			"Last HTTP status code received from the API endpoint",
 			["container_name", "endpoint"]
 		)
 		
