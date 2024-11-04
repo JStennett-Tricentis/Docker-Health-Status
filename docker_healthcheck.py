@@ -14,6 +14,19 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from prometheus_client import start_http_server, Gauge, Counter
 from config import Config
+from flask import Flask, jsonify
+import threading
+
+# Initialize Flask app
+app = Flask(__name__)
+
+@app.route("/health")
+def health_check():
+	"""Basic health check endpoint."""
+	return jsonify({
+		"status": "healthy",
+		"timestamp": datetime.now().isoformat()
+	}), 200
 
 class DockerHealthCheckMetrics:
 	def __init__(self):
@@ -167,7 +180,7 @@ class DockerHealthCheck:
 			return {"status": "skipped", "message": "API health check disabled"}
 
 		if not endpoints:
-			return {"status": "skipped", "message": "No endpoints configured"}
+			endpoints = [{"url": "http://localhost:5001/health", "method": "GET"}]
 
 		results = {
 			"status": "healthy",
@@ -378,6 +391,10 @@ class PortManager:
 				pass
 			self.current_socket = None
 
+def start_flask_app():
+	"""Start Flask app in a separate thread."""
+	app.run(host="0.0.0.0", port=5001)
+
 def main():
 	"""Main function to start health check with Prometheus metrics."""
 	import signal
@@ -400,6 +417,11 @@ def main():
 		# Load and validate configuration
 		config = Config()
 		config.validate()
+		
+		# Start Flask app in a separate thread
+		flask_thread = threading.Thread(target=start_flask_app, daemon=True)
+		flask_thread.start()
+		print("\033[32mAPI server started on port 5001\033[0m")
 		
 		# Initialize port manager
 		port_manager = PortManager(config.monitoring_config["prometheus_port"])
