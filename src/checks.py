@@ -301,10 +301,12 @@ class DockerHealthCheck:
 					"container_name": self.container_name,
 					"endpoint": endpoint["url"]
 				}
-				
+
+				# For response time, use observe() with Histogram
 				if "response_time" in endpoint:
 					self.metrics.api_response_time.labels(**labels).observe(endpoint["response_time"])
 
+				# For status code, use set() with Gauge
 				if "status_code" in endpoint:
 					self.metrics.api_last_status_code.labels(**labels).set(endpoint["status_code"])
 
