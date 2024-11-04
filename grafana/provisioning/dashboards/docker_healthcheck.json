@@ -147,31 +147,31 @@
 					"custom": {
 						"axisCenteredZero": false,
 						"axisColorMode": "text",
-						"axisLabel": "",
+						"axisLabel": "Response Time (s)",
 						"axisPlacement": "auto",
 						"barAlignment": 0,
 						"drawStyle": "line",
-						"fillOpacity": 0,
+						"fillOpacity": 20,
 						"gradientMode": "none",
 						"hideFrom": {
 							"legend": false,
 							"tooltip": false,
 							"viz": false
 						},
-						"lineInterpolation": "linear",
-						"lineWidth": 1,
+						"lineInterpolation": "smooth",
+						"lineWidth": 2,
 						"pointSize": 5,
 						"scaleDistribution": {
 							"type": "linear"
 						},
 						"showPoints": "auto",
-						"spanNulls": false,
+						"spanNulls": true,
 						"stacking": {
 							"group": "A",
 							"mode": "none"
 						},
 						"thresholdsStyle": {
-							"mode": "off"
+							"mode": "area"
 						}
 					},
 					"mappings": [],
@@ -184,10 +184,11 @@
 							},
 							{
 								"color": "red",
-								"value": 80
+								"value": 1.5
 							}
 						]
-					}
+					},
+					"unit": "s"
 				},
 				"overrides": []
 			},
@@ -200,8 +201,12 @@
 			"id": 3,
 			"options": {
 				"legend": {
-					"calcs": [],
-					"displayMode": "list",
+					"calcs": [
+						"mean",
+						"max",
+						"min"
+					],
+					"displayMode": "table",
 					"placement": "bottom",
 					"showLegend": true
 				},
@@ -217,8 +222,9 @@
 						"uid": "PBFA97CFB590B2093"
 					},
 					"editorMode": "builder",
-					"expr": "api_response_time_seconds",
+					"expr": "rate(api_response_time_seconds_sum[1m]) / rate(api_response_time_seconds_count[1m])",
 					"instant": false,
+					"legendFormat": "{{endpoint}}",
 					"range": true,
 					"refId": "A"
 				}
@@ -257,8 +263,12 @@
 						"mode": "absolute",
 						"steps": [
 							{
-								"color": "green",
+								"color": "red",
 								"value": null
+							},
+							{
+								"color": "green",
+								"value": 1
 							}
 						]
 					}
@@ -343,7 +353,7 @@
 			"id": 5,
 			"options": {
 				"colorMode": "value",
-				"graphMode": "area",
+				"graphMode": "none",
 				"justifyMode": "auto",
 				"orientation": "auto",
 				"reduceOptions": {
@@ -352,7 +362,8 @@
 					],
 					"fields": "",
 					"values": false
-				}
+				},
+				"textMode": "auto"
 			},
 			"pluginVersion": "10.0.3",
 			"targets": [
@@ -361,14 +372,83 @@
 						"type": "prometheus",
 						"uid": "PBFA97CFB590B2093"
 					},
-					"expr": "api_last_status_code{endpoint='/health'}",
-					"instant": false,
+					"expr": "api_last_status_code",
+					"instant": true,
 					"legendFormat": "{{endpoint}}",
-					"range": true,
+					"range": false,
 					"refId": "A"
 				}
 			],
-			"title": "API Status Code",
+			"title": "Current API Status Code",
+			"type": "stat"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "PBFA97CFB590B2093"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "red",
+								"value": null
+							},
+							{
+								"color": "yellow",
+								"value": 0.5
+							},
+							{
+								"color": "green",
+								"value": 1
+							}
+						]
+					}
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 16
+			},
+			"id": 6,
+			"options": {
+				"colorMode": "value",
+				"graphMode": "none",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					],
+					"fields": "",
+					"values": false
+				},
+				"textMode": "auto"
+			},
+			"pluginVersion": "10.0.3",
+			"targets": [
+				{
+					"datasource": {
+						"type": "prometheus",
+						"uid": "PBFA97CFB590B2093"
+					},
+					"expr": "api_health_status",
+					"instant": true,
+					"legendFormat": "{{endpoint}}",
+					"range": false,
+					"refId": "A"
+				}
+			],
+			"title": "API Health Status",
 			"type": "stat"
 		},
 		{
@@ -384,104 +464,7 @@
 					"custom": {
 						"axisCenteredZero": false,
 						"axisColorMode": "text",
-						"axisLabel": "",
-						"axisPlacement": "auto",
-						"barAlignment": 0,
-						"drawStyle": "line",
-						"fillOpacity": 20,
-						"gradientMode": "none",
-						"hideFrom": {
-							"legend": false,
-							"tooltip": false,
-							"viz": false
-						},
-						"lineInterpolation": "smooth",
-						"lineWidth": 2,
-						"pointSize": 5,
-						"scaleDistribution": {
-							"type": "linear"
-						},
-						"showPoints": "never",
-						"spanNulls": true,
-						"stacking": {
-							"group": "A",
-							"mode": "none"
-						},
-						"thresholdsStyle": {
-							"mode": "area"
-						}
-					},
-					"mappings": [],
-					"thresholds": {
-						"mode": "absolute",
-						"steps": [
-							{
-								"color": "green",
-								"value": null
-							},
-							{
-								"color": "yellow",
-								"value": 1
-							},
-							{
-								"color": "red",
-								"value": 2
-							}
-						]
-					},
-					"unit": "s"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 12,
-				"x": 12,
-				"y": 16
-			},
-			"id": 6,
-			"options": {
-				"legend": {
-					"calcs": [
-						"mean",
-						"max",
-						"min"
-					],
-					"displayMode": "table",
-					"placement": "bottom",
-					"showLegend": true
-				}
-			},
-			"pluginVersion": "10.0.3",
-			"targets": [
-				{
-					"datasource": {
-						"type": "prometheus",
-						"uid": "PBFA97CFB590B2093"
-					},
-					"expr": "rate(api_response_time_seconds_sum{endpoint='/health'}[5m]) / rate(api_response_time_seconds_count{endpoint='/health'}[5m])",
-					"legendFormat": "{{endpoint}} Response Time",
-					"range": true,
-					"refId": "A"
-				}
-			],
-			"title": "API Response Time",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "PBFA97CFB590B2093"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisCenteredZero": false,
-						"axisColorMode": "text",
-						"axisLabel": "",
+						"axisLabel": "Requests",
 						"axisPlacement": "auto",
 						"barAlignment": 0,
 						"drawStyle": "bars",
@@ -507,6 +490,16 @@
 						"thresholdsStyle": {
 							"mode": "off"
 						}
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							}
+						]
 					}
 				},
 				"overrides": []
@@ -524,7 +517,7 @@
 						"sum"
 					],
 					"displayMode": "table",
-					"placement": "bottom",
+					"placement": "right",
 					"showLegend": true
 				}
 			},
@@ -534,7 +527,7 @@
 						"type": "prometheus",
 						"uid": "PBFA97CFB590B2093"
 					},
-					"expr": "increase(api_request_total{endpoint='/health'}[5m])",
+					"expr": "sum(increase(api_request_total[5m])) by (status_code)",
 					"legendFormat": "{{status_code}}",
 					"range": true,
 					"refId": "A"
