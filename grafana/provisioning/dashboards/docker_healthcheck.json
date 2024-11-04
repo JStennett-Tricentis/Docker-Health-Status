@@ -19,6 +19,8 @@
 						"mode": "thresholds"
 					},
 					"mappings": [],
+					"max": 100,
+					"min": 0,
 					"thresholds": {
 						"mode": "absolute",
 						"steps": [
@@ -27,11 +29,17 @@
 								"value": null
 							},
 							{
+								"color": "yellow",
+								"value": 70
+							},
+							{
 								"color": "red",
-								"value": 80
+								"value": 85
 							}
 						]
-					}
+					},
+					"unit": "percent",
+					"decimals": 1
 				},
 				"overrides": []
 			},
@@ -52,7 +60,11 @@
 					"values": false
 				},
 				"showThresholdLabels": false,
-				"showThresholdMarkers": true
+				"showThresholdMarkers": true,
+				"text": {
+					"titleSize": 24,
+					"valueSize": 24
+				}
 			},
 			"pluginVersion": "10.0.3",
 			"targets": [
@@ -64,6 +76,7 @@
 					"editorMode": "builder",
 					"expr": "container_cpu_usage_percent",
 					"instant": false,
+					"legendFormat": "CPU Usage",
 					"range": true,
 					"refId": "A"
 				}
@@ -82,6 +95,8 @@
 						"mode": "thresholds"
 					},
 					"mappings": [],
+					"max": 100,
+					"min": 0,
 					"thresholds": {
 						"mode": "absolute",
 						"steps": [
@@ -90,11 +105,17 @@
 								"value": null
 							},
 							{
+								"color": "yellow",
+								"value": 75
+							},
+							{
 								"color": "red",
-								"value": 80
+								"value": 90
 							}
 						]
-					}
+					},
+					"unit": "percent",
+					"decimals": 1
 				},
 				"overrides": []
 			},
@@ -115,7 +136,11 @@
 					"values": false
 				},
 				"showThresholdLabels": false,
-				"showThresholdMarkers": true
+				"showThresholdMarkers": true,
+				"text": {
+					"titleSize": 24,
+					"valueSize": 24
+				}
 			},
 			"pluginVersion": "10.0.3",
 			"targets": [
@@ -127,6 +152,7 @@
 					"editorMode": "builder",
 					"expr": "container_memory_usage_percent",
 					"instant": false,
+					"legendFormat": "Memory Usage",
 					"range": true,
 					"refId": "A"
 				}
