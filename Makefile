@@ -6,9 +6,13 @@ install:
 	python -m pip install --upgrade pip
 	python -m pip install -r requirements.txt
 
+# Install package in development mode
+dev-install:
+	python -m pip install -e .
+
 # Run the main health check application
 run:
-	python docker_healthcheck.py
+	docker-healthcheck
 
 # Start the monitoring stack (Prometheus + Grafana)
 monitoring-up:
@@ -42,9 +46,9 @@ clean:
 	find . -type f -name "*.pyc" -delete
 
 # Full development setup
-setup: install monitoring-up test-container
+setup: install dev-install monitoring-up test-container
 
 # Tear down everything
 teardown: monitoring-down clean-test clean
 
-.PHONY: install run monitoring-up monitoring-down test-container clean-test format lint clean setup teardown
+.PHONY: install dev-install run monitoring-up monitoring-down test-container clean-test format lint clean setup teardown
