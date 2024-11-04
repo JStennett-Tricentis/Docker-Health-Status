@@ -26,6 +26,9 @@ monitoring-down:
 test-container:
 	docker run -d --name test_container nginx:latest
 
+# Restart everything
+restart: monitoring-down monitoring-up run
+
 # Remove test container
 clean-test:
 	docker rm -f test_container || true

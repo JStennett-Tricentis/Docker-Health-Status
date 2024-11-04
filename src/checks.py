@@ -151,6 +151,15 @@ class DockerHealthCheck:
 				# Calculate response time
 				response_time = time.time() - start_time
 				
+				# Always record the status code metric
+				self.metrics.api_last_status_code.labels(**labels).set(response.status_code)
+				
+				# Record the request with its status code
+				self.metrics.api_request_count.labels(
+					**labels,
+					status_code=str(response.status_code)
+				).inc()
+				
 				# Parse response data
 				try:
 					response_data = response.json()
@@ -159,15 +168,6 @@ class DockerHealthCheck:
 				
 				# Record response time
 				self.metrics.api_response_time.labels(**labels).observe(response_time)
-				
-				# Record request count with status code
-				self.metrics.api_request_count.labels(
-					**labels,
-					status_code=str(response.status_code)
-				).inc()
-				
-				# Update last status code
-				self.metrics.api_last_status_code.labels(**labels).set(response.status_code)
 				
 				# Prepare endpoint status
 				endpoint_status = {
@@ -194,27 +194,18 @@ class DockerHealthCheck:
 					self.metrics.api_health.labels(**labels).set(0)
 					self.logger.error(f"API error: {url} returned {response.status_code}")
 				
-				# Check response time threshold
-				if response_time > self.config.thresholds["response_time"]:
-					if endpoint_status["status"] == "healthy":
-						endpoint_status["status"] = "warning"
-					if results["status"] == "healthy":
-						results["status"] = "warning"
-					self.logger.warning(
-						f"Slow API response: {url} ({response_time:.2f}s > "
-						f"{self.config.thresholds['response_time']}s threshold)"
-					)
-				
 				results["endpoints"].append(endpoint_status)
 				
 			except requests.exceptions.RequestException as e:
 				self.logger.error(f"API request failed: {endpoint['url']} - {str(e)}")
 				
-				# Record failed request
+				# Record failed request with a specific error status code
+				error_status_code = "503"  # Service Unavailable for connection errors
+				self.metrics.api_last_status_code.labels(**labels).set(float(error_status_code))
 				self.metrics.api_request_count.labels(
 					container_name=self.container_name,
 					endpoint=endpoint["url"],
-					status_code="error"
+					status_code=error_status_code
 				).inc()
 				
 				# Set health status to error
@@ -227,6 +218,7 @@ class DockerHealthCheck:
 				results["endpoints"].append({
 					"url": endpoint["url"],
 					"status": "error",
+					"status_code": int(error_status_code),
 					"error": str(e),
 					"timestamp": datetime.now().isoformat()
 				})
@@ -275,51 +267,120 @@ class DockerHealthCheck:
 			return {"status": "error", "message": str(e)}
 
 	def update_prometheus_metrics(self, results: Dict) -> None:
-		"""Update Prometheus metrics based on health check results."""
-		# Update container status
-		self.metrics.container_up.labels(container_name=self.container_name).set(
-			1 if results["checks"]["container_running"]["status"] == "healthy" else 0
-		)
+		"""
+		Update Prometheus metrics based on health check results.
+		
+		This method handles updating all Prometheus metrics including:
+		- Container status and resource usage
+		- API health and performance metrics
+		- Error counts and status codes
+		- RabbitMQ metrics if enabled
+		
+		Args:
+			results: Dictionary containing all health check results
+		"""
+		try:
+			# 1. Update Container Status Metrics
+			container_status = results["checks"].get("container_running", {})
+			self.metrics.container_up.labels(
+				container_name=self.container_name
+			).set(1 if container_status.get("status") == "healthy" else 0)
 
-		# Update resource metrics
-		if "resources" in results["checks"]:
-			metrics = results["checks"]["resources"]["metrics"]
-			self.metrics.cpu_usage.labels(container_name=self.container_name).set(
-				metrics["cpu_percent"]
-			)
-			self.metrics.memory_usage.labels(container_name=self.container_name).set(
-				metrics["memory_percent"]
-			)
-			self.metrics.disk_usage.labels(container_name=self.container_name).set(
-				metrics["disk_percent"]
-			)
+			# 2. Update Resource Metrics
+			if "resources" in results["checks"]:
+				resource_metrics = results["checks"]["resources"].get("metrics", {})
+				
+				# CPU Usage
+				if "cpu_percent" in resource_metrics:
+					self.metrics.cpu_usage.labels(
+						container_name=self.container_name
+					).set(resource_metrics["cpu_percent"])
+				
+				# Memory Usage
+				if "memory_percent" in resource_metrics:
+					self.metrics.memory_usage.labels(
+						container_name=self.container_name
+					).set(resource_metrics["memory_percent"])
+				
+				# Disk Usage
+				if "disk_percent" in resource_metrics:
+					self.metrics.disk_usage.labels(
+						container_name=self.container_name
+					).set(resource_metrics["disk_percent"])
 
-		# Update API health metrics
-		if "api_health" in results["checks"]:
-			for endpoint in results["checks"]["api_health"]["endpoints"]:
-				labels = {
-					"container_name": self.container_name,
-					"endpoint": endpoint["url"]
-				}
+			# 3. Update API Health Metrics
+			if "api_health" in results["checks"]:
+				api_results = results["checks"]["api_health"]
+				
+				for endpoint in api_results.get("endpoints", []):
+					labels = {
+						"container_name": self.container_name,
+						"endpoint": endpoint["url"]
+					}
+					
+					# Response Time (using Histogram)
+					if "response_time" in endpoint:
+						self.metrics.api_response_time.labels(
+							**labels
+						).observe(endpoint["response_time"])
+					
+					# Request Count (using Counter)
+					status_code = str(endpoint.get("status_code", "unknown"))
+					self.metrics.api_request_count.labels(
+						**labels,
+						status_code=status_code
+					).inc()
+					
+					# Last Status Code (using Gauge)
+					if "status_code" in endpoint:
+						self.metrics.api_last_status_code.labels(
+							**labels
+						).set(endpoint["status_code"])
+					
+					# Health Status (using Gauge)
+					health_value = 1 if endpoint.get("status") == "healthy" else 0
+					self.metrics.api_health.labels(**labels).set(health_value)
 
-				# For response time, use observe() with Histogram
-				if "response_time" in endpoint:
-					self.metrics.api_response_time.labels(**labels).observe(endpoint["response_time"])
+			# 4. Update Error Metrics
+			if "logs" in results["checks"]:
+				log_results = results["checks"]["logs"]
+				
+				# Count errors by type
+				for error in log_results.get("errors_found", []):
+					self.metrics.error_count.labels(
+						container_name=self.container_name,
+						error_type=error
+					).inc()
 
-				# For status code, use set() with Gauge
-				if "status_code" in endpoint:
-					self.metrics.api_last_status_code.labels(**labels).set(endpoint["status_code"])
+			# 5. Update RabbitMQ Metrics
+			if "rabbitmq" in results["checks"]:
+				rabbitmq_status = results["checks"]["rabbitmq"]
+				
+				# RabbitMQ Status
+				self.metrics.rabbitmq_up.labels(
+					container_name=self.container_name
+				).set(1 if rabbitmq_status.get("status") == "healthy" else 0)
+				
+				# Connection Count
+				if "details" in rabbitmq_status:
+					self.metrics.rabbitmq_connection_count.labels(
+						container_name=self.container_name
+					).set(rabbitmq_status["details"].get("connections", 0))
+				
+				# Queue Messages
+				for queue_data in rabbitmq_status.get("queues", []):
+					self.metrics.rabbitmq_queue_messages.labels(
+						container_name=self.container_name,
+						queue=queue_data["name"]
+					).set(queue_data.get("messages", 0))
 
-				# Update request count using Counter
-				self.metrics.api_request_count.labels(
-					**labels,
-					status_code=str(endpoint.get("status_code", "error"))
-				).inc()
-
-				# Health status
-				self.metrics.api_health.labels(**labels).set(
-					1 if endpoint["status"] == "healthy" else 0
-				)
+		except Exception as e:
+			self.logger.error(f"Error updating Prometheus metrics: {str(e)}")
+			# Record the metric update failure
+			self.metrics.error_count.labels(
+				container_name=self.container_name,
+				error_type="metric_update_failure"
+			).inc()
 
 	def check_rabbitmq_health(self) -> Dict:
 		"""Check RabbitMQ health status."""
