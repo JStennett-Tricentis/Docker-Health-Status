@@ -10,12 +10,13 @@ from datetime import datetime
 import logging
 import os
 
+from .config import Config
 from src.metrics import DockerHealthCheckMetrics
 
 class DockerHealthCheck:
 	def __init__(self, config):
 		"""Initialize health check with configuration."""
-		self.config = config
+		self.config = Config()
 		self.container_name = config.container_name
 		self.client = docker.from_env()
 		self.logger = self._setup_logging()
@@ -120,7 +121,8 @@ class DockerHealthCheck:
 			return {"status": "skipped", "message": "API health check disabled"}
 
 		if not endpoints:
-			endpoints = [{"url": "http://localhost:5001/health", "method": "GET"}]
+			default_url = f"http://{self.config.api_config['host']}:{self.config.api_config['port']}/health"
+			endpoints = [{"url": default_url, "method": "GET"}]
 
 		results = {
 			"status": "healthy",
